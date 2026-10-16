@@ -1,6 +1,7 @@
 package com.example.app;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
@@ -15,5 +16,10 @@ class GreetingTest {
   @Test
   void helloKeepsAnEmptyName() {
     assertEquals("Hello, ", greeting.hello(""));
+  }
+
+  @Test
+  void willFail() {
+    assertTrue(false);
   }
 }
