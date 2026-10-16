@@ -1,4 +1,4 @@
-name: Spotless
+name: Spotless Check
 
 on:
   push:
