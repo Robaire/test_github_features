@@ -9,4 +9,5 @@ public final class Greeting {
     String name = args.length > 0 ? args[0] : "world";
     System.out.println(new Greeting().hello(name));
   }
+
 }
