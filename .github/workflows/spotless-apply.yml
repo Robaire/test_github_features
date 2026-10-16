@@ -1,0 +1,92 @@
+name: Spotless Apply
+
+on:
+  push:
+    branches:
+      - "**"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: spotless-apply-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    name: Spotless Apply
+    # A push of the formatting commit itself has nothing left to change.
+    if: ${{ !github.event.deleted && !startsWith(github.event.head_commit.message, 'Update formatting') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Apply Spotless to Java files in the push
+        run: |
+          set -euo pipefail
+
+          zero="0000000000000000000000000000000000000000"
+          before="${{ github.event.before }}"
+          ref=""
+
+          if [ "$before" != "$zero" ] && git cat-file -e "${before}^{commit}" 2>/dev/null; then
+            ref="$before"
+          else
+            default_branch="${{ github.event.repository.default_branch }}"
+            if git rev-parse --verify --quiet "origin/${default_branch}" >/dev/null; then
+              ref="$(git merge-base HEAD "origin/${default_branch}" || true)"
+            fi
+            if [ -z "$ref" ] || [ "$ref" = "$(git rev-parse HEAD)" ]; then
+              if git rev-parse --verify --quiet "HEAD^" >/dev/null; then
+                ref="HEAD^"
+              else
+                ref=""
+              fi
+            fi
+          fi
+
+          if [ -n "$ref" ]; then
+            changed="$(git diff --name-only --diff-filter=ACMR "$ref" HEAD -- '*.java')"
+            if [ -z "$changed" ]; then
+              echo "No Java files changed since ${ref}."
+              exit 0
+            fi
+            echo "Formatting Java files changed since ${ref}:"
+            printf '%s\n' "$changed"
+            ./gradlew spotlessApply "-PratchetFrom=${ref}"
+          else
+            changed="$(git diff-tree --no-commit-id --name-only -r --diff-filter=ACMR HEAD -- '*.java')"
+            if [ -z "$changed" ]; then
+              echo "No Java files in this commit."
+              exit 0
+            fi
+            echo "Formatting Java files in the root commit:"
+            printf '%s\n' "$changed"
+            ./gradlew spotlessApply
+          fi
+
+      - name: Commit formatting changes
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -u -- src
+          if git diff --cached --quiet; then
+            echo "Java files are already formatted."
+            exit 0
+          fi
+          git commit -m "Update formatting"
+          git push origin "HEAD:refs/heads/${{ github.ref_name }}"

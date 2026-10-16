@@ -35,11 +35,14 @@ git commit
 
 ## GitHub Actions
 
-Two workflows run on every push and pull request:
+| Workflow | File | When | Gradle task | Status check |
+| --- | --- | --- | --- | --- |
+| JUnit | `.github/workflows/junit.yml` | push and pull request | `test` | `JUnit` |
+| Spotless | `.github/workflows/spotless.yml` | push and pull request | `spotlessCheck` | `Spotless` |
+| Spotless Apply | `.github/workflows/spotless-apply.yml` | push | `spotlessApply` | `Spotless Apply` |
 
-| Workflow | File | Gradle task | Status check |
-| --- | --- | --- | --- |
-| JUnit | `.github/workflows/junit.yml` | `test` | `JUnit` |
-| Spotless | `.github/workflows/spotless.yml` | `spotlessCheck` | `Spotless` |
+JUnit and Spotless are separate workflows so each one can be required on its own in a branch protection rule. GitHub lists a check only after that workflow has run at least once on the repository.
 
-They are separate workflows so each one can be required on its own in a branch protection rule. In the rule, the status check names to require are `JUnit` and `Spotless`. GitHub lists a check only after that workflow has run at least once on the repository.
+Spotless Apply formats only the Java files changed by the push. It compares against the branch tip from before the push, or against the default branch for a newly pushed branch. If Spotless changes anything, the workflow commits those files with the message `Update formatting` and pushes that commit.
+
+That push uses the workflow's `GITHUB_TOKEN`. GitHub does not start new workflow runs from that token, so the formatting commit does not run JUnit or Spotless again. On an already formatted push, the job finishes without a new commit.

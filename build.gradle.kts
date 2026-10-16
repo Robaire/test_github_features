@@ -31,6 +31,9 @@ tasks.test {
 }
 
 spotless {
+    // Set with -PratchetFrom=<git-ref> to format only files that differ from that ref.
+    providers.gradleProperty("ratchetFrom").orNull?.takeIf { it.isNotBlank() }?.let { ratchetFrom(it) }
+
     java {
         target("src/**/*.java")
         googleJavaFormat()
